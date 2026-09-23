@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>בני תבור - ניהול קבוצת כדורסל</title>
+    <!-- אייקון האפליקציה -->
+    <link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=">
+    <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCDMi9z84yQqHjL2CDtbWgXVsmVx59T0eg",
+            authDomain: "bneytavor-489c1.firebaseapp.com",
+            projectId: "bneytavor-489c1",
+            storageBucket: "bneytavor-489c1.firebasestorage.app",
+            messagingSenderId: "695722699474",
+            appId: "1:695722699474:web:1e8ac4b3d0815dab821b0b",
+            measurementId: "G-LYJ3W6HMWZ"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // חשיפת פונקציות גלובליות לניהול הנתונים בענן
+        window.db = db;
+        window.fbCollection = collection;
+        window.fbAddDoc = addDoc;
+        window.fbGetDocs = getDocs;
+        window.fbDeleteDoc = deleteDoc;
+        window.fbDoc = doc;
+        window.fbOnSnapshot = onSnapshot;
+
+        // הפעלת האפליקציה לאחר טעינת הפיירבייס
+        if (window.initAppAfterFirebase) {
+            window.initAppAfterFirebase();
+        }
+    </script>
+
+    <style>
+        :root {
+            --primary: #1b2a4a;
+            --secondary: #d4af37;
+            --accent: #c0392b;
+            --bg: #0f172a;
+            --card-bg: #1e293b;
+            --text: #f8fafc;
+            --text-muted: #94a3b8;
+            --border: #334155;
+            --success: #27ae60;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Heebo', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        header {
+            width: 100%;
+            background: linear-gradient(135deg, var(--primary), #0b1329);
+            border-bottom: 3px solid var(--secondary);
+            padding: 15px;
+            text-align: center;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .app-logo {
+            width: 110px;
+            height: 110px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid var(--secondary);
+            box-shadow: 0 4px 15px rgba(212, 175, 55, 0.5);
+            background: var(--primary);
+        }
+
+        header h1 {
+            color: var(--secondary);
+            font-size: 1.8rem;
+            font-weight: 900;
+        }
+
+        header p {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 600px;
+            padding: 15px;
+            flex: 1;
+            padding-bottom: 90px;
+        }
+
+        .nav-tabs {
+            display: flex;
+            justify-content: space-around;
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 6px;
+            margin-bottom: 20px;
+            border: 1px solid var(--border);
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+            max-width: 600px;
+            z-index: 1000;
+            box-shadow: 0 -4px 15px rgba(0,0,0,0.3);
+        }
+
+        .nav-tab {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            padding: 8px 10px;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 3px;
+            font-size: 0.75rem;
+        }
+
+        .nav-tab i {
+            font-size: 1.1rem;
+        }
+
+        .nav-tab.active {
+            background: var(--secondary);
+            color: var(--primary);
+            font-weight: 700;
+        }
+
+        .section {
+            display: none;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+
+        .section.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        .card h2 {
+            font-size: 1.1rem;
+            color: var(--secondary);
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 8px;
+        }
+
+        .form-group {
+            margin-bottom: 12px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 10px;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            font-size: 0.95rem;
+            outline: none;
+        }
+
+        .form-control:focus {
+            border-color: var(--secondary);
+        }
+
+        .btn {
+            background: var(--secondary);
+            color: var(--primary);
+            border: none;
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 0.95rem;
+            cursor: pointer;
+            width: 100%;
+            transition: opacity 0.2s;
+        }
+
+        .btn:hover {
+            opacity: 0.9;
+        }
+
+        .btn-danger {
+            background: var(--accent);
+            color: white;
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+
+        .player-card-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 12px;
+        }
+
+        .player-profile-card {
+            background: rgba(15, 23, 42, 0.5);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .player-avatar {
+            width: 55px;
+            height: 55px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid var(--secondary);
+            background: #334155;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-muted);
+            font-size: 1.2rem;
+        }
+
+        .player-details h4 {
+            font-size: 1.0rem;
+            color: var(--text);
+        }
+
+        .player-details p {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .player-stats-mini {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 5px;
+            font-size: 0.75rem;
+            color: var(--secondary);
+        }
+
+        .match-item {
+            background: rgba(15, 23, 42, 0.4);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 10px;
+        }
+
+        .match-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            border-bottom: 1px solid rgba(51, 65, 85, 0.4);
+            padding-bottom: 6px;
+        }
+
+        .stats-inputs-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 5px;
+        }
+
+        .stat-input-box {
+            text-align: center;
+        }
+
+        .stat-input-box label {
+            font-size: 0.6rem;
+            color: var(--text-muted);
+            display: block;
+            margin-bottom: 2px;
+        }
+
+        .stat-input-box input {
+            width: 100%;
+            padding: 6px;
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text);
+            text-align: center;
+            font-size: 0.85rem;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div style="background:var(--secondary); color:var(--primary); padding:8px 16px; border-radius:20px; font-weight:900; font-size:1.1rem; box-shadow: 0 4px 10px rgba(212,175,55,0.4);">
+            🏀 בני תבור • ירושלים
+        </div>
+        <div>
+            <h1>מועדון כדורסל שכונתי</h1>
+            <p>בית הכרם (EST. 2016) • מנוהל בענן בלייב</p>
+        </div>
+    </header>
+
+    <div class="container">
+        <!-- 1. סגל -->
+        <div id="tab-roster" class="section active">
+            <div class="card">
+                <h2><i class="fa-solid fa-user-plus"></i> הוספת שחקן חדש לסגל</h2>
+                <div class="form-group">
+                    <label>שם מלא (שם פרטי ומשפחה)</label>
+                    <input type="text" id="pName" class="form-control" placeholder="לדוגמה: עמית אליאסף">
+                </div>
+                <div class="form-group">
+                    <label>כינוי (Nickname - אופציונלי)</label>
+                    <input type="text" id="pNick" class="form-control" placeholder="לדוגמה: המנוע">
+                </div>
+                <div class="form-group">
+                    <label>מספר גופיה</label>
+                    <input type="number" id="pNum" class="form-control" placeholder="7">
+                </div>
+                <div class="form-group">
+                    <label>קישור לתמונה (URL - אופציונלי)</label>
+                    <input type="text" id="pImg" class="form-control" placeholder="https://example.com/photo.jpg">
+                </div>
+                <button class="btn" onclick="addPlayer()">צור כרטיס שחקן</button>
+            </div>
+
+            <div class="card">
+                <h2><i class="fa-solid fa-users"></i> סגל השחקנים הרשום</h2>
+                <div id="rosterList" class="player-card-grid"></div>
+            </div>
+        </div>
+
+        <!-- 2. משחקים -->
+        <div id="tab-match" class="section">
+            <div class="card">
+                <h2><i class="fa-solid fa-basketball"></i> 1. פתיחת משחק חדש (חלוקה לקבוצות)</h2>
+                <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;">שייך כל שחקן שהגיע לקבוצה א' או לקבוצה ב'.</p>
+                <div id="setupTeamsContainer" style="margin-bottom: 12px;"></div>
+                <button class="btn" onclick="createNewMatch()">פתח משחק חדש</button>
+            </div>
+
+            <div class="card">
+                <h2><i class="fa-solid fa-clipboard-check"></i> 2. משחקים ממתינים לסיום</h2>
+                <div id="pendingMatchesList"></div>
+            </div>
+        </div>
+
+        <!-- 3. סטטיסטיקות -->
+        <div id="tab-stats" class="section">
+            <div class="card">
+                <h2><i class="fa-solid fa-chart-bar"></i> ממוצעים, אחוזי ניצחונות ונתונים</h2>
+                <div id="seasonStatsList" class="player-card-grid"></div>
+            </div>
+        </div>
+
+        <!-- 4. היסטוריה -->
+        <div id="tab-history" class="section">
+            <div class="card">
+                <h2><i class="fa-solid fa-clock-rotate-left"></i> היסטוריית משחקי עבר</h2>
+                <div id="historyList"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- תפריט ניווט תחתוני -->
+    <div class="nav-tabs">
+        <button class="nav-tab active" onclick="switchTab('tab-roster', this)">
+            <i class="fa-solid fa-users"></i>
+            סגל
+        </button>
+        <button class="nav-tab" onclick="switchTab('tab-match', this)">
+            <i class="fa-solid fa-basketball"></i>
+            משחקונים
+        </button>
+        <button class="nav-tab" onclick="switchTab('tab-stats', this)">
+            <i class="fa-solid fa-chart-pie"></i>
+            סטטיסטיקות
+        </button>
+        <button class="nav-tab" onclick="switchTab('tab-history', this)">
+            <i class="fa-solid fa-history"></i>
+            היסטוריה
+        </button>
+    </div>
+
+    <script>
+        let players = [];
+        let matches = [];
+
+        window.initAppAfterFirebase = function() {
+            // האזנה לשינויים בסגל שחקנים מ-Firestore בלייב
+            window.fbOnSnapshot(window.fbCollection(window.db, "players"), (snapshot) => {
+                players = [];
+                snapshot.forEach((docSnap) => {
+                    players.push({ firebaseId: docSnap.id, ...docSnap.data() });
+                });
+                renderAll();
+            });
+
+            // האזנה לשינויים במשחקים מ-Firestore בלייב
+            window.fbOnSnapshot(window.fbCollection(window.db, "matches"), (snapshot) => {
+                matches = [];
+                snapshot.forEach((docSnap) => {
+                    matches.push({ firebaseId: docSnap.id, ...docSnap.data() });
+                });
+                renderAll();
+            });
+        };
+
+        function switchTab(tabId, btn) {
+            document.querySelectorAll('.section').forEach(sec => sec.classList.remove('active'));
+            document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            btn.classList.add('active');
+            renderAll();
+        }
+
+        function getPlayerDisplayName(player) {
+            if (player.nickname && player.nickname.trim() !== '') {
+                return player.nickname;
+            }
+            const parts = player.name.trim().split(' ');
+            if (parts.length > 1) {
+                return parts[parts.length - 1];
+            }
+            return player.name;
+        }
+
+        async function addPlayer() {
+            const name = document.getElementById('pName').value.trim();
+            const nickname = document.getElementById('pNick').value.trim();
+            const number = document.getElementById('pNum').value;
+            const image = document.getElementById('pImg').value.trim();
+
+            if (!name) {
+                alert('נא להכניס שם שחקן');
+                return;
+            }
+
+            try {
+                await window.fbAddDoc(window.fbCollection(window.db, "players"), {
+                    id: Date.now(),
+                    name,
+                    nickname,
+                    number: number ? parseInt(number) : 0,
+                    image
+                });
+
+                document.getElementById('pName').value = '';
+                document.getElementById('pNick').value = '';
+                document.getElementById('pNum').value = '';
+                document.getElementById('pImg').value = '';
+                alert('השחקן נוסף לענן בהצלחה!');
+            } catch (error) {
+                console.error("Error adding player: ", error);
+                alert('שגיאה בהוספת השחקן');
+            }
+        }
+
+        async function deletePlayer(firebaseId) {
+            if(confirm('האם למחוק שחקן זה מהענן?')) {
+                try {
+                    await window.fbDeleteDoc(window.fbDoc(window.db, "players", firebaseId));
+                } catch (e) {
+                    alert('שגיאה במחיקת השחקן');
+                }
+            }
+        }
+
+        async function createNewMatch() {
+            const selects = document.querySelectorAll('.setup-player-team');
+            let teamAPlayers = [];
+            let teamBPlayers = [];
+
+            selects.forEach(sel => {
+                const pId = parseInt(sel.dataset.playerid);
+                const teamVal = sel.value;
+                if (teamVal === 'teamA') teamAPlayers.push(pId);
+                if (teamVal === 'teamB') teamBPlayers.push(pId);
+            });
+
+            if (teamAPlayers.length === 0 || teamBPlayers.length === 0) {
+                alert('יש לבחור לפחות שחקן אחד לקבוצה א\' ולפחות שחקן אחד לקבוצה ב\'');
+                return;
+            }
+
+            const teamANames = teamAPlayers.map(id => {
+                const p = players.find(x => x.id === id);
+                return p ? getPlayerDisplayName(p) : '';
+            }).join(', ');
+
+            const teamBNames = teamBPlayers.map(id => {
+                const p = players.find(x => x.id === id);
+                return p ? getPlayerDisplayName(p) : '';
+            }).join(', ');
+
+            const matchTitle = `${teamANames} VS ${teamBNames}`;
+
+            try {
+                await window.fbAddDoc(window.fbCollection(window.db, "matches"), {
+                    id: Date.now(),
+                    date: new Date().toLocaleDateString('he-IL'),
+                    title: matchTitle,
+                    status: 'pending',
+                    teamA: teamAPlayers,
+                    teamB: teamBPlayers,
+                    teamAScore: 0,
+                    teamBScore: 0,
+                    winner: '',
+                    stats: []
+                });
+                alert('המשחק נוצר בענן בהצלחה!');
+            } catch (e) {
+                alert('שגיאה ביצירת המשחק');
+            }
+        }
+
+        async function finishMatch(firebaseId, matchId) {
+            const matchCard = document.getElementById(`pending-match-${matchId}`);
+            const scoreA = parseInt(matchCard.querySelector('.score-a-input').value) || 0;
+            const scoreB = parseInt(matchCard.querySelector('.score-b-input').value) || 0;
+
+            let winner = 'tie';
+            if (scoreA > scoreB) winner = 'teamA';
+            else if (scoreB > scoreA) winner = 'teamB';
+
+            const rows = matchCard.querySelectorAll('.match-player-row');
+            let matchStats = [];
+
+            rows.forEach(row => {
+                const playerId = parseInt(row.dataset.playerid);
+                const pts = parseInt(row.querySelector('.pts').value) || 0;
+                const ast = parseInt(row.querySelector('.ast').value) || 0;
+                const reb = parseInt(row.querySelector('.reb').value) || 0;
+                const stl = parseInt(row.querySelector('.stl').value) || 0;
+                const blk = parseInt(row.querySelector('.blk').value) || 0;
+                const team = row.dataset.team;
+
+                matchStats.push({ playerId, pts, ast, reb, stl, blk, team });
+            });
+
+            try {
+                // מחיקת המשחק ממצב Pending והוספתו כמשחק שהסתיים או עדכון המסמך
+                await window.fbDeleteDoc(window.fbDoc(window.db, "matches", firebaseId));
+                await window.fbAddDoc(window.fbCollection(window.db, "matches"), {
+                    ...matches.find(m => m.firebaseId === firebaseId),
+                    status: 'completed',
+                    teamAScore: scoreA,
+                    teamBScore: scoreB,
+                    winner: winner,
+                    stats: matchStats
+                });
+                alert('המשחק עודכן בענן בהצלחה!');
+            } catch (e) {
+                alert('שגיאה בשמירת המשחק');
+            }
+        }
+
+        async function deleteMatch(firebaseId) {
+            if(confirm('האם למחוק משחק זה?')) {
+                await window.fbDeleteDoc(window.fbDoc(window.db, "matches", firebaseId));
+            }
+        }
+
+        function getPlayerSeasonStats(playerId) {
+            let gamesPlayed = 0;
+            let gamesWon = 0;
+            let totalPts = 0, totalAst = 0, totalReb = 0, totalStl = 0, totalBlk = 0;
+
+            matches.filter(m => m.status === 'completed').forEach(match => {
+                const pStat = match.stats.find(s => s.playerId === playerId);
+                if (pStat) {
+                    gamesPlayed++;
+                    totalPts += pStat.pts;
+                    totalAst += pStat.ast;
+                    totalReb += pStat.reb;
+                    totalStl += pStat.stl;
+                    totalBlk += pStat.blk;
+
+                    if (match.winner !== 'tie' && match.winner === pStat.team) {
+                        gamesWon++;
+                    }
+                }
+            });
+
+            const winRate = gamesPlayed > 0 ? Math.round((gamesWon / gamesPlayed) * 100) : 0;
+            if (gamesPlayed === 0) return { games: 0, winRate: 0, pts: 0, ast: 0, reb: 0, stl: 0, blk: 0 };
+
+            return {
+                games: gamesPlayed,
+                winRate,
+                pts: (totalPts / gamesPlayed).toFixed(1),
+                ast: (totalAst / gamesPlayed).toFixed(1),
+                reb: (totalReb / gamesPlayed).toFixed(1),
+                stl: (totalStl / gamesPlayed).toFixed(1),
+                blk: (totalBlk / gamesPlayed).toFixed(1)
+            };
+        }
+
+        function renderRoster() {
+            const list = document.getElementById('rosterList');
+            if (players.length === 0) {
+                list.innerHTML = '<p style="color:var(--text-muted); text-align:center;">אין שחקנים בסגל עדיין.</p>';
+                return;
+            }
+
+            list.innerHTML = players.map(p => `
+                <div class="player-profile-card">
+                    <div class="player-avatar">
+                        ${p.image ? `<img src="${p.image}" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">` : '<i class="fa-solid fa-user"></i>'}
+                    </div>
+                    <div class="player-details" style="flex:1;">
+                        <h4>#${p.number} - ${p.name} ${p.nickname ? `(${p.nickname})` : ''}</h4>
+                        <p>שם תצוגה: ${getPlayerDisplayName(p)}</p>
+                    </div>
+                    <button class="btn btn-danger" style="padding: 6px 10px; font-size:0.8rem; width:auto;" onclick="deletePlayer('${p.firebaseId}')"><i class="fa-solid fa-trash"></i></button>
+                </div>
+            `).join('');
+        }
+
+        function renderMatchSection() {
+            const setupDiv = document.getElementById('setupTeamsContainer');
+            if (players.length === 0) {
+                setupDiv.innerHTML = '<p style="color:var(--text-muted); text-align:center;">יש להוסיף שחקנים לסגל תחילה.</p>';
+            } else {
+                setupDiv.innerHTML = `
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        ${players.map(p => `
+                            <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(15,23,42,0.5); padding: 8px; border-radius: 6px; border: 1px solid var(--border);">
+                                <span style="font-size: 0.9rem;"><strong>#${p.number}</strong>${p.name}</span>
+                                <select class="form-control setup-player-team" data-playerid="${p.id}" style="width: 140px; padding: 6px; font-size: 0.8rem;">
+                                    <option value="none">ללא שיוך</option>
+                                    <option value="teamA">קבוצה א'</option>
+                                    <option value="teamB">קבוצה ב'</option>
+                                </select>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            }
+
+            const pendingList = document.getElementById('pendingMatchesList');
+            const pendingMatches = matches.filter(m => m.status === 'pending');
+
+            if (pendingMatches.length === 0) {
+                pendingList.innerHTML = '<p style="color:var(--text-muted); text-align:center; margin-top:10px;">אין משחקים ממתינים כרגע.</p>';
+                return;
+            }
+
+            pendingList.innerHTML = pendingMatches.map(m => `
+                <div class="match-item" id="pending-match-${m.id}">
+                    <div class="match-header">
+                        <span><strong>${m.title}</strong> (${m.date})</span>
+                        <button class="btn btn-danger" style="padding: 4px 8px; font-size:0.75rem; width:auto;" onclick="deleteMatch('${m.firebaseId}')">מחק</button>
+                    </div>
+
+                    <div style="background: rgba(15,23,42,0.6); padding: 10px; border-radius: 8px; margin-bottom: 12px; border: 1px solid var(--border);">
+                        <label style="font-size: 0.85rem; color: var(--secondary); display: block; margin-bottom: 6px; font-weight: 700;">תוצאה כללית למשחק</label>
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <div style="flex: 1; text-align: center;">
+                                <label style="font-size:0.75rem;">קבוצה א'</label>
+                                <input type="number" class="form-control score-a-input" value="0" min="0">
+                            </div>
+                            <span style="font-weight: bold; margin-top: 15px;">VS</span>
+                            <div style="flex: 1; text-align: center;">
+                                <label style="font-size:0.75rem;">קבוצה ב'</label>
+                                <input type="number" class="form-control score-b-input" value="0" min="0">
+                            </div>
+                        </div>
+                    </div>
+
+                    <label style="font-size: 0.85rem; color: var(--text-muted); display: block; margin-bottom: 6px; font-weight: 700;">סטטיסטיקה אישית לשחקנים:</label>
+                    
+                    <div style="margin-bottom: 8px; color: var(--secondary); font-size: 0.8rem;">קבוצה א':</div>
+                    ${m.teamA.map(pId => {
+                        const p = players.find(x => x.id === pId);
+                        return p ? renderPlayerStatRow(p, 'teamA') : '';
+                    }).join('')}
+
+                    <div style="margin: 8px 0 8px 0; color: var(--secondary); font-size: 0.8rem;">קבוצה ב':</div>
+                    ${m.teamB.map(pId => {
+                        const p = players.find(x => x.id === pId);
+                        return p ? renderPlayerStatRow(p, 'teamB') : '';
+                    }).join('')}
+
+                    <button class="btn btn-success" style="margin-top: 12px;" onclick="finishMatch('${m.firebaseId}', ${m.id})">סיים משחק ושמור נתונים לענן</button>
+                </div>
+            `).join('');
+        }
+
+        function renderPlayerStatRow(p, teamName) {
+            return `
+                <div class="match-player-row" data-playerid="${p.id}" data-team="${teamName}" style="background: rgba(15,23,42,0.6); padding:8px; border-radius:6px; margin-bottom:6px;">
+                    <div style="margin-bottom:4px; font-size:0.85rem;">
+                        <strong>#${p.number}</strong> ${p.name}
+                    </div>
+                    <div class="stats-inputs-grid">
+                        <div class="stat-input-box"><label>נק'</label><input type="number" class="pts" value="0" min="0"></div>
+                        <div class="stat-input-box"><label>אס'</label><input type="number" class="ast" value="0" min="0"></div>
+                        <div class="stat-input-box"><label>ריב'</label><input type="number" class="reb" value="0" min="0"></div>
+                        <div class="stat-input-box"><label>חט'</label><input type="number" class="stl" value="0" min="0"></div>
+                        <div class="stat-input-box"><label>חס'</label><input type="number" class="blk" value="0" min="0"></div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderSeasonStats() {
+            const list = document.getElementById('seasonStatsList');
+            if (players.length === 0) {
+                list.innerHTML = '<p style="color:var(--text-muted); text-align:center;">אין שחקנים להצגה.</p>';
+                return;
+            }
+
+            list.innerHTML = players.map(p => {
+                const stats = getPlayerSeasonStats(p.id);
+                return `
+                    <div class="player-profile-card">
+                        <div class="player-avatar">
+                            ${p.image ? `<img src="${p.image}" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">` : '<i class="fa-solid fa-user"></i>'}
+                        </div>
+                        <div class="player-details" style="flex:1;">
+                            <h4>#${p.number} - ${p.name}</h4>
+                            <div class="player-stats-mini">
+                                <span>משחקים: ${stats.games}</span> | 
+                                <span style="color:var(--success)">אחוזי ניצחון: <strong>${stats.winRate}%</strong></span> | 
+                                <span>ממוצע נק': <strong>${stats.pts}</strong></span> | 
+                                <span>אס': ${stats.ast}</span> | 
+                                <span>ריב': ${stats.reb}</span> | 
+                                <span>חט': ${stats.stl}</span> | 
+                                <span>חס': ${stats.blk}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderHistory() {
+            const list = document.getElementById('historyList');
+            const completedMatches = matches.filter(m => m.status === 'completed');
+
+            if (completedMatches.length === 0) {
+                list.innerHTML = '<p style="color:var(--text-muted); text-align:center;">טרם הסתיימו משחקים להצגה בהיסטוריה.</p>';
+                return;
+            }
+
+            list.innerHTML = completedMatches.slice().reverse().map(m => `
+                <div class="match-item">
+                    <div class="match-header">
+                        <span><strong>${m.title}</strong> (${m.date})</span>
+                        <span style="color:var(--secondary); font-size:0.85rem; font-weight:700;">תוצאה: ${m.teamAScore} - ${m.teamBScore}</span>
+                    </div>
+                    <div style="font-size:0.8rem; color:var(--text-muted);">
+                        ${m.stats.map(s => {
+                            const player = players.find(p => p.id === s.playerId);
+                            return player ? `<div>• <strong>${player.name}</strong> (${s.team === 'teamA' ? "קבוצה א'" : "קבוצה ב'"}): ${s.pts} נק', ${s.ast} אס', ${s.reb} ריב', ${s.stl} חט', ${s.blk} חס'</div>` : '';
+                        }).join('')}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderAll() {
+            renderRoster();
+            renderMatchSection();
+            renderSeasonStats();
+            renderHistory();
+        }
+    </script>
+</body>
+</html>
