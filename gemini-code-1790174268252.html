@@ -335,6 +335,55 @@
             text-align: center;
             font-size: 0.85rem;
         }
+
+        /* עיצוב המסך הקופץ (Modal) להתאמת תמונה */
+        #imageModal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(5px);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            padding: 15px;
+        }
+
+        .modal-content {
+            background: var(--card-bg);
+            border: 2px solid var(--secondary);
+            border-radius: 16px;
+            width: 100%;
+            max-width: 400px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        .modal-content h3 {
+            color: var(--secondary);
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+        }
+
+        .preview-container {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            overflow: hidden;
+            margin: 0 auto 15px auto;
+            border: 3px solid var(--secondary);
+            background: #334155;
+        }
+
+        .preview-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
     </style>
 </head>
 <body>
@@ -355,6 +404,7 @@
             <div class="card">
                 <h2 id="formTitle"><i class="fa-solid fa-user-plus"></i> הוספת שחקן חדש לסגל</h2>
                 <input type="hidden" id="editingFirebaseId" value="">
+                <input type="hidden" id="croppedImageData" value="">
                 <div class="form-group">
                     <label>שם מלא (שם פרטי ומשפחה)</label>
                     <input type="text" id="pName" class="form-control" placeholder="לדוגמה: עמית אליאסף">
@@ -368,9 +418,17 @@
                     <input type="number" id="pNum" class="form-control" placeholder="7">
                 </div>
                 <div class="form-group">
-                    <label>תמונת פרופיל (העלאה מהמכשיר - כיווץ חזק אוטומטי)</label>
-                    <input type="file" id="pImageFile" class="form-control" accept="image/*" style="padding: 7px;">
+                    <label>תמונת פרופיל (העלאה מהמכשיר)</label>
+                    <input type="file" id="pImageFile" class="form-control" accept="image/*" style="padding: 7px;" onchange="openImageCompressorModal(this)">
                 </div>
+                
+                <!-- תצוגה מקדימה קטנה אם נבחרה תמונה -->
+                <div id="selectedImagePreviewContainer" style="display:none; align-items:center; gap:10px; margin-bottom:12px; background:rgba(15,23,42,0.5); padding:8px; border-radius:8px; border:1px solid var(--border);">
+                    <img id="miniPreviewImg" style="width:40px; height:40px; border-radius:50%; object-fit:cover; border:1px solid var(--secondary);">
+                    <span id="miniPreviewSizeText" style="font-size:0.8rem; color:var(--success);">התמונה מוכנה ומכווצת!</span>
+                    <button type="button" class="btn btn-danger" style="padding:4px 8px; font-size:0.7rem; width:auto; margin-right:auto;" onclick="clearSelectedImage()">הסר</button>
+                </div>
+
                 <button id="savePlayerBtn" class="btn" onclick="savePlayer()">צור כרטיס שחקן</button>
                 <button id="cancelEditBtn" class="btn btn-danger" style="display:none; margin-top: 8px;" onclick="resetPlayerForm()">ביטול עריכה</button>
             </div>
@@ -413,6 +471,30 @@
         </div>
     </div>
 
+    <!-- מסך קופץ (Modal) לכיווץ התמונה ידנית ע"י המשתמש -->
+    <div id="imageModal">
+        <div class="modal-content">
+            <h3><i class="fa-solid fa-compress"></i> כיווץ והתאמת תמונת פרופיל</h3>
+            <p style="font-size:0.8rem; color:var(--text-muted); margin-bottom:12px;">גרור את המד למטה עד שמשקל התמונה ירד מתחת למגבלת ה-1MB (מומלץ סביב 30KB-200KB).</p>
+            
+            <div class="preview-container">
+                <img id="modalPreviewImg">
+            </div>
+
+            <div style="margin-bottom: 15px;">
+                <label style="font-size:0.8rem; color:var(--secondary); display:block; margin-bottom:5px;">איכות / רזולוציית דחיסה:</label>
+                <input type="range" id="compressionSlider" min="100" max="600" value="200" step="50" style="width:100%; accent-color:var(--secondary);" oninput="updateImageCompression()">
+            </div>
+
+            <div id="modalSizeIndicator" style="font-size:0.9rem; font-weight:700; margin-bottom:15px; color:var(--success);">גודל נוכחי: חישוב...</div>
+
+            <div style="display:flex; gap:10px;">
+                <button class="btn btn-success" id="confirmImageBtn" onclick="confirmCompressedImage()">אשר ושמור תמונה</button>
+                <button class="btn btn-danger" onclick="closeImageModal()">ביטול</button>
+            </div>
+        </div>
+    </div>
+
     <!-- תפריט ניווט תחתוני -->
     <div class="nav-tabs">
         <button class="nav-tab active" onclick="switchTab('tab-roster', this)">
@@ -436,6 +518,7 @@
     <script>
         let players = [];
         let matches = [];
+        let rawLoadedImageObj = null;
 
         window.initAppAfterFirebase = function() {
             window.fbOnSnapshot(window.fbCollection(window.db, "players"), (snapshot) => {
@@ -483,6 +566,15 @@
             document.getElementById('pNick').value = player.nickname || '';
             document.getElementById('pNum').value = player.number || '';
             document.getElementById('pImageFile').value = '';
+            document.getElementById('croppedImageData').value = player.image || '';
+
+            if (player.image) {
+                document.getElementById('miniPreviewImg').src = player.image;
+                document.getElementById('selectedImagePreviewContainer').style.display = 'flex';
+                document.getElementById('miniPreviewSizeText').innerText = 'תמונה קיימת נטענה בהצלחה';
+            } else {
+                document.getElementById('selectedImagePreviewContainer').style.display = 'none';
+            }
             
             document.getElementById('formTitle').innerHTML = '<i class="fa-solid fa-user-pen"></i> עריכת פרטי שחקן';
             document.getElementById('savePlayerBtn').innerText = 'שמור שינויים';
@@ -498,6 +590,8 @@
             document.getElementById('pNick').value = '';
             document.getElementById('pNum').value = '';
             document.getElementById('pImageFile').value = '';
+            document.getElementById('croppedImageData').value = '';
+            document.getElementById('selectedImagePreviewContainer').style.display = 'none';
 
             document.getElementById('formTitle').innerHTML = '<i class="fa-solid fa-user-plus"></i> הוספת שחקן חדש לסגל';
             document.getElementById('savePlayerBtn').innerText = 'צור כרטיס שחקן';
@@ -505,50 +599,93 @@
             document.getElementById('cancelEditBtn').style.display = 'none';
         }
 
-        // פונקציית כיווץ אגרסיבית שמתאימה גם לתמונות כבדות מאוד (מעל 1MB)
-        function compressImageToSquare(file, callback) {
-            const reader = new FileReader();
-            reader.onerror = function() {
-                callback('');
-            };
-            reader.onload = function(e) {
-                const img = new Image();
-                img.onerror = function() {
-                    callback('');
+        function clearSelectedImage() {
+            document.getElementById('pImageFile').value = '';
+            document.getElementById('croppedImageData').value = '';
+            document.getElementById('selectedImagePreviewContainer').style.display = 'none';
+        }
+
+        // פתיחת המסך הקופץ לעיבוד התמונה שנבחרה
+        function openImageCompressorModal(input) {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const img = new Image();
+                    img.onload = function() {
+                        rawLoadedImageObj = img;
+                        document.getElementById('imageModal').style.display = 'flex';
+                        updateImageCompression();
+                    };
+                    img.src = e.target.result;
                 };
-                img.onload = function() {
-                    try {
-                        const canvas = document.createElement('canvas');
-                        const targetSize = 150; // רזולוציה קטנה ומושלמת לפרופיל ששוקלת מעט מאוד קילו-בייטים
-                        canvas.width = targetSize;
-                        canvas.height = targetSize;
-                        const ctx = canvas.getContext('2d');
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
 
-                        let sourceWidth = img.width;
-                        let sourceHeight = img.height;
-                        let startX = 0;
-                        let startY = 0;
+        // עדכון דינמי של הכיווץ לפי בחירת המשתמש במד
+        function updateImageCompression() {
+            if (!rawLoadedImageObj) return;
 
-                        if (sourceWidth > sourceHeight) {
-                            startX = (sourceWidth - sourceHeight) / 2;
-                            sourceWidth = sourceHeight;
-                        } else {
-                            startY = (sourceHeight - sourceWidth) / 2;
-                            sourceHeight = sourceWidth;
-                        }
+            const sliderVal = parseInt(document.getElementById('compressionSlider').value);
+            const canvas = document.createElement('canvas');
+            canvas.width = sliderVal;
+            canvas.height = sliderVal;
+            const ctx = canvas.getContext('2d');
 
-                        ctx.drawImage(img, startX, startY, sourceWidth, sourceHeight, 0, 0, targetSize, targetSize);
-                        
-                        // איכות 0.5 מבטיחה שהנפח ירד לפחות מ-20KB ויעבור את המגבלה בקלי קלות
-                        const dataUrl = canvas.toDataURL('image/jpeg', 0.5);
-                        callback(dataUrl);
-                    } catch (err) {
-                        callback('');
-                    }
-                };
-                img.src = e.target.result;
-            };
-            reader.readAsDataURL(file);
+            let sw = rawLoadedImageObj.width;
+            let sh = rawLoadedImageObj.height;
+            let sx = 0, sy = 0;
+
+            if (sw > sh) {
+                sx = (sw - sh) / 2;
+                sw = sh;
+            } else {
+                sy = (sh - sw) / 2;
+                sh = sw;
+            }
+
+            ctx.drawImage(rawLoadedImageObj, sx, sy, sw, sh, 0, 0, sliderVal, sliderVal);
+            
+            // איכות דחיסה 0.65
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.65);
+            document.getElementById('modalPreviewImg').src = dataUrl;
+
+            // חישוב משקל מדויק בקילו-בייטים (KB)
+            const base64Length = dataUrl.length - (dataUrl.indexOf(',') + 1);
+            const sizeInBytes = (base64Length * 3) / 4;
+            const sizeInKB = (sizeInBytes / 1024).toFixed(1);
+            const sizeInMB = (sizeInBytes / (1024 * 1024)).toFixed(3);
+
+            const indicator = document.getElementById('modalSizeIndicator');
+            const confirmBtn = document.getElementById('confirmImageBtn');
+
+            if (sizeInBytes < 1024 * 1024) {
+                indicator.innerHTML = `משקל תמונה: <span style="color:var(--success);">${sizeInKB} KB</span> (תקין לחלוטין לענן! 🎉)`;
+                indicator.style.color = 'var(--success)';
+                confirmBtn.disabled = false;
+                confirmBtn.style.opacity = '1';
+            } else {
+                indicator.innerHTML = `משקל תמונה: <span style="color:var(--accent);">${sizeInMB} MB</span> (חורג מ-1MB! נא להקטין את המד)`;
+                indicator.style.color = 'var(--accent)';
+                confirmBtn.disabled = true;
+                confirmBtn.style.opacity = '0.5';
+            }
+        }
+
+        function confirmCompressedImage() {
+            const dataUrl = document.getElementById('modalPreviewImg').src;
+            document.getElementById('croppedImageData').value = dataUrl;
+            document.getElementById('miniPreviewImg').src = dataUrl;
+            document.getElementById('miniPreviewSizeText').innerText = 'תמונה כווצה בהצלחה וממתינה לשמירה!';
+            document.getElementById('selectedImagePreviewContainer').style.display = 'flex';
+            document.getElementById('imageModal').style.display = 'none';
+        }
+
+        function closeImageModal() {
+            document.getElementById('imageModal').style.display = 'none';
+            if (!document.getElementById('croppedImageData').value) {
+                document.getElementById('pImageFile').value = '';
+            }
         }
 
         async function savePlayer() {
@@ -556,34 +693,19 @@
             const name = document.getElementById('pName').value.trim();
             const nickname = document.getElementById('pNick').value.trim();
             const number = document.getElementById('pNum').value;
-            const fileInput = document.getElementById('pImageFile');
+            const finalImage = document.getElementById('croppedImageData').value;
 
             if (!name) {
                 alert('נא להכניס שם שחקן');
                 return;
             }
 
-            let existingImage = '';
             if (editingId) {
                 const existingPlayer = players.find(p => p.firebaseId === editingId);
-                if (existingPlayer) existingImage = existingPlayer.image || '';
-            }
-
-            if (fileInput.files && fileInput.files[0]) {
-                compressImageToSquare(fileInput.files[0], async function(compressedDataUrl) {
-                    const finalImage = compressedDataUrl || existingImage;
-                    if (editingId) {
-                        await updatePlayerInFirebase(editingId, name, nickname, number, finalImage);
-                    } else {
-                        await addNewPlayerToFirebase(name, nickname, number, finalImage);
-                    }
-                });
+                const imgToSave = finalImage || (existingPlayer ? existingPlayer.image : '');
+                await updatePlayerInFirebase(editingId, name, nickname, number, imgToSave);
             } else {
-                if (editingId) {
-                    await updatePlayerInFirebase(editingId, name, nickname, number, existingImage);
-                } else {
-                    await addNewPlayerToFirebase(name, nickname, number, '');
-                }
+                await addNewPlayerToFirebase(name, nickname, number, finalImage);
             }
         }
 
@@ -600,7 +722,7 @@
                 alert('השחקן נוסף לענן בהצלחה!');
             } catch (error) {
                 console.error(error);
-                alert('שגיאה בהוספת השחקן לענן.');
+                alert('שגיאה בהוספת השחקן לענן. ודא שמשקל התמונה תקין.');
             }
         }
 
