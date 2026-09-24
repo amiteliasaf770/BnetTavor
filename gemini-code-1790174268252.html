@@ -368,7 +368,7 @@
                     <input type="number" id="pNum" class="form-control" placeholder="7">
                 </div>
                 <div class="form-group">
-                    <label>תמונת פרופיל (העלאה מהמכשיר)</label>
+                    <label>תמונת פרופיל (העלאה מהמכשיר - מכווץ אוטומטית כגון ווצאפ)</label>
                     <input type="file" id="pImageFile" class="form-control" accept="image/*" style="padding: 7px;">
                 </div>
                 <button id="savePlayerBtn" class="btn" onclick="savePlayer()">צור כרטיס שחקן</button>
@@ -482,6 +482,7 @@
             document.getElementById('pName').value = player.name;
             document.getElementById('pNick').value = player.nickname || '';
             document.getElementById('pNum').value = player.number || '';
+            document.getElementById('pImageFile').value = '';
             
             document.getElementById('formTitle').innerHTML = '<i class="fa-solid fa-user-pen"></i> עריכת פרטי שחקן';
             document.getElementById('savePlayerBtn').innerText = 'שמור שינויים';
@@ -504,48 +505,53 @@
             document.getElementById('cancelEditBtn').style.display = 'none';
         }
 
-        function resizeImage(file, maxWidth, maxHeight, callback) {
+        // פונקציית כיווץ ודחיסה אגרסיבית דמוית וואטסאפ (חותכת לריבוע ומורידה נפח למקסימום)
+        function compressImageToSquare(file, callback) {
             const reader = new FileReader();
             reader.onerror = function() {
-                console.error("שגיאה בקריאת קובץ התמונה");
-                callback(''); // המשך ללא תמונה אם יש תקלה בקובץ
+                console.error("שגיאה בקריאת הקובץ");
+                callback('');
             };
-            reader.onload = function (e) {
+            reader.onload = function(e) {
                 const img = new Image();
                 img.onerror = function() {
-                    console.error("שגיאה בטעינת התמונה לזיכרון");
+                    console.error("שגיאה בפיענוח התמונה");
                     callback('');
                 };
-                img.onload = function () {
+                img.onload = function() {
                     try {
-                        let canvas = document.createElement('canvas');
-                        let width = img.width;
-                        let height = img.height;
+                        const canvas = document.createElement('canvas');
+                        const targetSize = 200; // גודל פיקסלים סופי כמו תמונת פרופיל איכותית
+                        canvas.width = targetSize;
+                        canvas.height = targetSize;
+                        const ctx = canvas.getContext('2d');
 
-                        if (width > height) {
-                            if (width > maxWidth) {
-                                height *= maxWidth / width;
-                                width = maxWidth;
-                            }
+                        let sourceWidth = img.width;
+                        let sourceHeight = img.height;
+                        let startX = 0;
+                        let startY = 0;
+
+                        // חיתוך מרכזי לריבוע מושלם כמו בווצאפ
+                        if (sourceWidth > sourceHeight) {
+                            startX = (sourceWidth - sourceHeight) / 2;
+                            sourceWidth = sourceHeight;
                         } else {
-                            if (height > maxHeight) {
-                                width *= maxHeight / height;
-                                height = maxHeight;
-                            }
+                            startY = (sourceHeight - sourceWidth) / 2;
+                            sourceHeight = sourceWidth;
                         }
 
-                        canvas.width = width;
-                        canvas.height = height;
-                        const ctx = canvas.getContext('2d');
-                        ctx.drawImage(img, 0, 0, width, height);
-                        callback(canvas.toDataURL('image/jpeg', 0.6));
+                        ctx.drawImage(img, startX, startY, sourceWidth, sourceHeight, 0, 0, targetSize, targetSize);
+                        
+                        // המרה ל-JPEG עם איכות 0.6 (מוריד את נפח התמונה לפחות מ-35 קילו-בייט)
+                        const dataUrl = canvas.toDataURL('image/jpeg', 0.6);
+                        callback(dataUrl);
                     } catch (err) {
                         console.error("שגיאה בעיבוד הקנבס:", err);
                         callback('');
                     }
-                }
+                };
                 img.src = e.target.result;
-            }
+            };
             reader.readAsDataURL(file);
         }
 
@@ -568,7 +574,7 @@
             }
 
             if (fileInput.files && fileInput.files[0]) {
-                resizeImage(fileInput.files[0], 150, 150, async function(compressedDataUrl) {
+                compressImageToSquare(fileInput.files[0], async function(compressedDataUrl) {
                     const finalImage = compressedDataUrl || existingImage;
                     if (editingId) {
                         await updatePlayerInFirebase(editingId, name, nickname, number, finalImage);
@@ -595,10 +601,10 @@
                     image
                 });
                 resetPlayerForm();
-                alert('השחקן נוסף לענן בהצלחה!');
+                alert('השחקן עם התמונה נוסף לענן בהצלחה!');
             } catch (error) {
                 console.error(error);
-                alert('שגיאה בהוספת השחקן לענן. בדוק את חיבור האינטרנט.');
+                alert('שגיאה בהוספת השחקן לענן. בדוק את החיבור.');
             }
         }
 
