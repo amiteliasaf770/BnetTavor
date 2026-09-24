@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>בני תבור - ניהול קבוצת כדורסל</title>
-    <!-- אייקון האפליקציה -->
     <link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=">
     <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -12,7 +11,7 @@
     <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, getDocs, deleteDoc, updateDoc, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyCDMi9z84yQqHjL2CDtbWgXVsmVx59T0eg",
@@ -27,16 +26,15 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // חשיפת פונקציות גלובליות לניהול הנתונים בענן
         window.db = db;
         window.fbCollection = collection;
         window.fbAddDoc = addDoc;
         window.fbGetDocs = getDocs;
         window.fbDeleteDoc = deleteDoc;
+        window.fbUpdateDoc = updateDoc;
         window.fbDoc = doc;
         window.fbOnSnapshot = onSnapshot;
 
-        // הפעלת האפליקציה לאחר טעינת הפיירבייס
         if (window.initAppAfterFirebase) {
             window.initAppAfterFirebase();
         }
@@ -82,16 +80,6 @@
             flex-direction: column;
             align-items: center;
             gap: 10px;
-        }
-
-        .app-logo {
-            width: 110px;
-            height: 110px;
-            border-radius: 50%;
-            object-fit: cover;
-            border: 3px solid var(--secondary);
-            box-shadow: 0 4px 15px rgba(212, 175, 55, 0.5);
-            background: var(--primary);
         }
 
         header h1 {
@@ -242,6 +230,11 @@
             color: white;
         }
 
+        .btn-warning {
+            background: #f39c12;
+            color: white;
+        }
+
         .player-card-grid {
             display: grid;
             grid-template-columns: 1fr;
@@ -270,6 +263,13 @@
             justify-content: center;
             color: var(--text-muted);
             font-size: 1.2rem;
+            overflow: hidden;
+        }
+
+        .player-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
         }
 
         .player-details h4 {
@@ -353,7 +353,8 @@
         <!-- 1. סגל -->
         <div id="tab-roster" class="section active">
             <div class="card">
-                <h2><i class="fa-solid fa-user-plus"></i> הוספת שחקן חדש לסגל</h2>
+                <h2 id="formTitle"><i class="fa-solid fa-user-plus"></i> הוספת שחקן חדש לסגל</h2>
+                <input type="hidden" id="editingFirebaseId" value="">
                 <div class="form-group">
                     <label>שם מלא (שם פרטי ומשפחה)</label>
                     <input type="text" id="pName" class="form-control" placeholder="לדוגמה: עמית אליאסף">
@@ -367,10 +368,11 @@
                     <input type="number" id="pNum" class="form-control" placeholder="7">
                 </div>
                 <div class="form-group">
-                    <label>קישור לתמונה (URL - אופציונלי)</label>
-                    <input type="text" id="pImg" class="form-control" placeholder="https://example.com/photo.jpg">
+                    <label>תמונת פרופיל (העלאה מהמכשיר)</label>
+                    <input type="file" id="pImageFile" class="form-control" accept="image/*" style="padding: 7px;">
                 </div>
-                <button class="btn" onclick="addPlayer()">צור כרטיס שחקן</button>
+                <button id="savePlayerBtn" class="btn" onclick="savePlayer()">צור כרטיס שחקן</button>
+                <button id="cancelEditBtn" class="btn btn-danger" style="display:none; margin-top: 8px;" onclick="resetPlayerForm()">ביטול עריכה</button>
             </div>
 
             <div class="card">
@@ -436,7 +438,6 @@
         let matches = [];
 
         window.initAppAfterFirebase = function() {
-            // האזנה לשינויים בסגל שחקנים מ-Firestore בלייב
             window.fbOnSnapshot(window.fbCollection(window.db, "players"), (snapshot) => {
                 players = [];
                 snapshot.forEach((docSnap) => {
@@ -445,7 +446,6 @@
                 renderAll();
             });
 
-            // האזנה לשינויים במשחקים מ-Firestore בלייב
             window.fbOnSnapshot(window.fbCollection(window.db, "matches"), (snapshot) => {
                 matches = [];
                 snapshot.forEach((docSnap) => {
@@ -474,17 +474,105 @@
             return player.name;
         }
 
-        async function addPlayer() {
+        function editPlayer(firebaseId) {
+            const player = players.find(p => p.firebaseId === firebaseId);
+            if (!player) return;
+
+            document.getElementById('editingFirebaseId').value = player.firebaseId;
+            document.getElementById('pName').value = player.name;
+            document.getElementById('pNick').value = player.nickname || '';
+            document.getElementById('pNum').value = player.number || '';
+            
+            document.getElementById('formTitle').innerHTML = '<i class="fa-solid fa-user-pen"></i> עריכת פרטי שחקן';
+            document.getElementById('savePlayerBtn').innerText = 'שמור שינויים';
+            document.getElementById('savePlayerBtn').className = 'btn btn-warning';
+            document.getElementById('cancelEditBtn').style.display = 'block';
+
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function resetPlayerForm() {
+            document.getElementById('editingFirebaseId').value = '';
+            document.getElementById('pName').value = '';
+            document.getElementById('pNick').value = '';
+            document.getElementById('pNum').value = '';
+            document.getElementById('pImageFile').value = '';
+
+            document.getElementById('formTitle').innerHTML = '<i class="fa-solid fa-user-plus"></i> הוספת שחקן חדש לסגל';
+            document.getElementById('savePlayerBtn').innerText = 'צור כרטיס שחקן';
+            document.getElementById('savePlayerBtn').className = 'btn';
+            document.getElementById('cancelEditBtn').style.display = 'none';
+        }
+
+        // פונקציה להקטנת תמונה אוטומטית לפני שמירה
+        function resizeImage(file, maxWidth, maxHeight, callback) {
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                const img = new Image();
+                img.onload = function () {
+                    let canvas = document.createElement('canvas');
+                    let width = img.width;
+                    let height = img.height;
+
+                    if (width > height) {
+                        if (width > maxWidth) {
+                            height *= maxWidth / width;
+                            width = maxWidth;
+                        }
+                    } else {
+                        if (height > maxHeight) {
+                            width *= maxHeight / height;
+                            height = maxHeight;
+                        }
+                    }
+
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    callback(canvas.toDataURL('image/jpeg', 0.7)); // איכות 70% לגודל קובץ קטן
+                }
+                img.src = e.target.result;
+            }
+            reader.readAsDataURL(file);
+        }
+
+        async function savePlayer() {
+            const editingId = document.getElementById('editingFirebaseId').value;
             const name = document.getElementById('pName').value.trim();
             const nickname = document.getElementById('pNick').value.trim();
             const number = document.getElementById('pNum').value;
-            const image = document.getElementById('pImg').value.trim();
+            const fileInput = document.getElementById('pImageFile');
 
             if (!name) {
                 alert('נא להכניס שם שחקן');
                 return;
             }
 
+            let existingImage = '';
+            if (editingId) {
+                const existingPlayer = players.find(p => p.firebaseId === editingId);
+                if (existingPlayer) existingImage = existingPlayer.image || '';
+            }
+
+            if (fileInput.files && fileInput.files[0]) {
+                resizeImage(fileInput.files[0], 200, 200, async function(compressedDataUrl) {
+                    if (editingId) {
+                        await updatePlayerInFirebase(editingId, name, nickname, number, compressedDataUrl);
+                    } else {
+                        await addNewPlayerToFirebase(name, nickname, number, compressedDataUrl);
+                    }
+                });
+            } else {
+                if (editingId) {
+                    await updatePlayerInFirebase(editingId, name, nickname, number, existingImage);
+                } else {
+                    await addNewPlayerToFirebase(name, nickname, number, '');
+                }
+            }
+        }
+
+        async function addNewPlayerToFirebase(name, nickname, number, image) {
             try {
                 await window.fbAddDoc(window.fbCollection(window.db, "players"), {
                     id: Date.now(),
@@ -493,15 +581,28 @@
                     number: number ? parseInt(number) : 0,
                     image
                 });
-
-                document.getElementById('pName').value = '';
-                document.getElementById('pNick').value = '';
-                document.getElementById('pNum').value = '';
-                document.getElementById('pImg').value = '';
+                resetPlayerForm();
                 alert('השחקן נוסף לענן בהצלחה!');
             } catch (error) {
-                console.error("Error adding player: ", error);
-                alert('שגיאה בהוספת השחקן');
+                console.error(error);
+                alert('שגיאה בהוספת השחקן לענן');
+            }
+        }
+
+        async function updatePlayerInFirebase(firebaseId, name, nickname, number, image) {
+            try {
+                const playerRef = window.fbDoc(window.db, "players", firebaseId);
+                await window.fbUpdateDoc(playerRef, {
+                    name,
+                    nickname,
+                    number: number ? parseInt(number) : 0,
+                    image
+                });
+                resetPlayerForm();
+                alert('פרטי השחקן עודכנו בהצלחה!');
+            } catch (error) {
+                console.error(error);
+                alert('שגיאה בעדכון השחקן בענן');
             }
         }
 
@@ -588,7 +689,6 @@
             });
 
             try {
-                // מחיקת המשחק ממצב Pending והוספתו כמשחק שהסתיים או עדכון המסמך
                 await window.fbDeleteDoc(window.fbDoc(window.db, "matches", firebaseId));
                 await window.fbAddDoc(window.fbCollection(window.db, "matches"), {
                     ...matches.find(m => m.firebaseId === firebaseId),
@@ -655,13 +755,16 @@
             list.innerHTML = players.map(p => `
                 <div class="player-profile-card">
                     <div class="player-avatar">
-                        ${p.image ? `<img src="${p.image}" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">` : '<i class="fa-solid fa-user"></i>'}
+                        ${p.image ? `<img src="${p.image}">` : '<i class="fa-solid fa-user"></i>'}
                     </div>
                     <div class="player-details" style="flex:1;">
                         <h4>#${p.number} - ${p.name} ${p.nickname ? `(${p.nickname})` : ''}</h4>
                         <p>שם תצוגה: ${getPlayerDisplayName(p)}</p>
                     </div>
-                    <button class="btn btn-danger" style="padding: 6px 10px; font-size:0.8rem; width:auto;" onclick="deletePlayer('${p.firebaseId}')"><i class="fa-solid fa-trash"></i></button>
+                    <div style="display: flex; gap: 5px;">
+                        <button class="btn btn-warning" style="padding: 6px 10px; font-size:0.8rem; width:auto;" onclick="editPlayer('${p.firebaseId}')"><i class="fa-solid fa-pen"></i></button>
+                        <button class="btn btn-danger" style="padding: 6px 10px; font-size:0.8rem; width:auto;" onclick="deletePlayer('${p.firebaseId}')"><i class="fa-solid fa-trash"></i></button>
+                    </div>
                 </div>
             `).join('');
         }
@@ -765,7 +868,7 @@
                 return `
                     <div class="player-profile-card">
                         <div class="player-avatar">
-                            ${p.image ? `<img src="${p.image}" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">` : '<i class="fa-solid fa-user"></i>'}
+                            ${p.image ? `<img src="${p.image}">` : '<i class="fa-solid fa-user"></i>'}
                         </div>
                         <div class="player-details" style="flex:1;">
                             <h4>#${p.number} - ${p.name}</h4>
