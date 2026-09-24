@@ -8,7 +8,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    <!-- Firebase SDKs (כולל Storage מלא) -->
+    <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getFirestore, collection, addDoc, getDocs, deleteDoc, updateDoc, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
@@ -365,8 +365,8 @@
                     <input type="number" id="pNum" class="form-control" placeholder="7">
                 </div>
                 <div class="form-group">
-                    <label>תמונת פרופיל (העלאה חלקה ל-Firebase Storage)</label>
-                    <input type="file" id="pImageFile" class="form-control" accept="image/*" style="padding: 7px;">
+                    <label>קישור תמונה (Image URL - עוקף בעיות העלאה)</label>
+                    <input type="text" id="pImageLink" class="form-control" placeholder="הדבק כאן קישור תמונה (אופציונלי)">
                 </div>
                 <button id="savePlayerBtn" class="btn" onclick="savePlayer()">צור כרטיס שחקן</button>
                 <button id="cancelEditBtn" class="btn btn-danger" style="display:none; margin-top: 8px;" onclick="resetPlayerForm()">ביטול עריכה</button>
@@ -479,7 +479,7 @@
             document.getElementById('pName').value = player.name;
             document.getElementById('pNick').value = player.nickname || '';
             document.getElementById('pNum').value = player.number || '';
-            document.getElementById('pImageFile').value = '';
+            document.getElementById('pImageLink').value = player.image || '';
             
             document.getElementById('formTitle').innerHTML = '<i class="fa-solid fa-user-pen"></i> עריכת פרטי שחקן';
             document.getElementById('savePlayerBtn').innerText = 'שמור שינויים';
@@ -494,7 +494,7 @@
             document.getElementById('pName').value = '';
             document.getElementById('pNick').value = '';
             document.getElementById('pNum').value = '';
-            document.getElementById('pImageFile').value = '';
+            document.getElementById('pImageLink').value = '';
 
             document.getElementById('formTitle').innerHTML = '<i class="fa-solid fa-user-plus"></i> הוספת שחקן חדש לסגל';
             document.getElementById('savePlayerBtn').innerText = 'צור כרטיס שחקן';
@@ -507,86 +507,36 @@
             const name = document.getElementById('pName').value.trim();
             const nickname = document.getElementById('pNick').value.trim();
             const number = document.getElementById('pNum').value;
-            const fileInput = document.getElementById('pImageFile');
+            const imageLink = document.getElementById('pImageLink').value.trim();
 
             if (!name) {
                 alert('נא להכניס שם שחקן');
                 return;
             }
 
-            let existingImage = '';
-            if (editingId) {
-                const existingPlayer = players.find(p => p.firebaseId === editingId);
-                if (existingPlayer) existingImage = existingPlayer.image || '';
-            }
-
-            let finalImage = existingImage;
-
-            // אם נבחר קובץ חדש - נעלה אותו ל-Firebase Storage
-            if (fileInput.files && fileInput.files[0]) {
-                const file = fileInput.files[0];
-                console.log("מתחיל העלאת קובץ ל-Storage:", file.name);
-                const storageRef = window.fbStorageRef(window.storage, `player_images/${Date.now()}_${file.name}`);
-                
-                try {
-                    document.getElementById('savePlayerBtn').innerText = 'מעלה תמונה לענן...';
-                    document.getElementById('savePlayerBtn').disabled = true;
-
-                    const snapshot = await window.fbUploadBytes(storageRef, file);
-                    console.log("הקובץ הועלה בהצלחה ל-Storage, מקבל קישור הורדה...");
-                    finalImage = await window.fbGetDownloadURL(snapshot.ref);
-                    console.log("קישור התמונה התקבל בהצלחה:", finalImage);
-                } catch (error) {
-                    console.error("שגיאה מלאה בהעלאת קובץ ל-Storage:", error);
-                    alert('שגיאה בהעלאת התמונה לענן: ' + error.message);
-                    document.getElementById('savePlayerBtn').innerText = editingId ? 'שמור שינויים' : 'צור כרטיס שחקן';
-                    document.getElementById('savePlayerBtn').disabled = false;
-                    return;
-                } finally {
-                    document.getElementById('savePlayerBtn').disabled = false;
+            try {
+                if (editingId) {
+                    const playerRef = window.fbDoc(window.db, "players", editingId);
+                    await window.fbUpdateDoc(playerRef, {
+                        name,
+                        nickname,
+                        number: number ? parseInt(number) : 0,
+                        image: imageLink
+                    });
+                    alert('פרטי השחקן עודכנו בהצלחה!');
+                } else {
+                    await window.fbAddDoc(window.fbCollection(window.db, "players"), {
+                        id: Date.now(),
+                        name,
+                        nickname,
+                        number: number ? parseInt(number) : 0,
+                        image: imageLink
+                    });
+                    alert('השחקן נוסף בהצלחה!');
                 }
-            } else {
-                console.log("לא נבחר קובץ תמונה, שומר שחקן ללא תמונה חדשה.");
-            }
-
-            if (editingId) {
-                await updatePlayerInFirebase(editingId, name, nickname, number, finalImage);
-            } else {
-                await addNewPlayerToFirebase(name, nickname, number, finalImage);
-            }
-        }
-
-        async function addNewPlayerToFirebase(name, nickname, number, image) {
-            try {
-                await window.fbAddDoc(window.fbCollection(window.db, "players"), {
-                    id: Date.now(),
-                    name,
-                    nickname,
-                    number: number ? parseInt(number) : 0,
-                    image
-                });
                 resetPlayerForm();
-                alert('השחקן נוסף בהצלחה!');
             } catch (error) {
-                console.error("שגיאה בהוספת מסמך לפיירסטור:", error);
-                alert('שגיאה בהוספת השחקן לענן.');
-            }
-        }
-
-        async function updatePlayerInFirebase(firebaseId, name, nickname, number, image) {
-            try {
-                const playerRef = window.fbDoc(window.db, "players", firebaseId);
-                await window.fbUpdateDoc(playerRef, {
-                    name,
-                    nickname,
-                    number: number ? parseInt(number) : 0,
-                    image
-                });
-                resetPlayerForm();
-                alert('פרטי השחקן עודכנו בהצלחה!');
-            } catch (error) {
-                console.error("שגיאה בעדכון מסמך לפיירסטור:", error);
-                alert('שגיאה בעדכון השחקן לענן.');
+                alert('שגיאה בשמירה לענן: ' + error.message);
             }
         }
 
