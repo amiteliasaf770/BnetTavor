@@ -8,7 +8,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getFirestore, collection, addDoc, getDocs, deleteDoc, updateDoc, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
@@ -18,7 +17,7 @@
             apiKey: "AIzaSyCDMi9z84yQqHjL2CDtbWgXVsmVx59T0eg",
             authDomain: "bneytavor-489c1.firebaseapp.com",
             projectId: "bneytavor-489c1",
-            storageBucket: "bneytavor-489c1.appspot.com",
+            storageBucket: "bneytavor-489c1.firebasestorage.app",
             messagingSenderId: "695722699474",
             appId: "1:695722699474:web:1e8ac4b3d0815dab821b0b",
             measurementId: "G-LYJ3W6HMWZ"
@@ -356,7 +355,6 @@
     </header>
 
     <div class="container">
-        <!-- 1. סגל -->
         <div id="tab-roster" class="section active">
             <div class="card">
                 <h2 id="formTitle"><i class="fa-solid fa-user-plus"></i> הוספת שחקן חדש לסגל</h2>
@@ -387,7 +385,6 @@
             </div>
         </div>
 
-        <!-- 2. משחקים -->
         <div id="tab-match" class="section">
             <div class="card">
                 <h2><i class="fa-solid fa-basketball"></i> 1. פתיחת משחק חדש (חלוקה לקבוצות)</h2>
@@ -402,7 +399,6 @@
             </div>
         </div>
 
-        <!-- 3. סטטיסטיקות -->
         <div id="tab-stats" class="section">
             <div class="card">
                 <h2><i class="fa-solid fa-chart-bar"></i> ממוצעים, אחוזי ניצחונות ונתונים</h2>
@@ -410,7 +406,6 @@
             </div>
         </div>
 
-        <!-- 4. היסטוריה -->
         <div id="tab-history" class="section">
             <div class="card">
                 <h2><i class="fa-solid fa-clock-rotate-left"></i> היסטוריית משחקי עבר</h2>
@@ -419,7 +414,6 @@
         </div>
     </div>
 
-    <!-- תפריט ניווט תחתוני -->
     <div class="nav-tabs">
         <button class="nav-tab active" onclick="switchTab('tab-roster', this)">
             <i class="fa-solid fa-users"></i>
@@ -620,7 +614,7 @@
                 return p ? getPlayerDisplayName(p) : '';
             }).join(', ');
 
-            const matchTitle = `${teamANames} VS ${teamBNames}`;
+            const matchTitle = `${teamANames} VS${teamBNames}`;
 
             try {
                 await window.fbAddDoc(window.fbCollection(window.db, "matches"), {
@@ -735,7 +729,7 @@
                         ${p.image ? `<img src="${p.image}">` : '<i class="fa-solid fa-user"></i>'}
                     </div>
                     <div class="player-details" style="flex:1;">
-                        <h4>#${p.number} - ${p.name} ${p.nickname ? `(${p.nickname})` : ''}</h4>
+                        <h4>#${p.number} - ${p.name}${p.nickname ? `(${p.nickname})` : ''}</h4>
                         <p>שם תצוגה: ${getPlayerDisplayName(p)}</p>
                     </div>
                     <div style="display: flex; gap: 5px;">
@@ -755,7 +749,7 @@
                     <div style="display: flex; flex-direction: column; gap: 8px;">
                         ${players.map(p => `
                             <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(15,23,42,0.5); padding: 8px; border-radius: 6px; border: 1px solid var(--border);">
-                                <span style="font-size: 0.9rem;"><strong>#${p.number}</strong>${p.name}</span>
+                                <span style="font-size: 0.9rem;"><strong>#${p.number}</strong> ${p.name}</span>
                                 <select class="form-control setup-player-team" data-playerid="${p.id}" style="width: 140px; padding: 6px; font-size: 0.8rem;">
                                     <option value="none">ללא שיוך</option>
                                     <option value="teamA">קבוצה א'</option>
@@ -811,7 +805,7 @@
                         return p ? renderPlayerStatRow(p, 'teamB') : '';
                     }).join('')}
 
-                    <button class="btn btn-success" style="margin-top: 12px;" onclick="finishMatch('${m.firebaseId}', ${m.id})">סיים משחק ושמור נתונים לענן</button>
+                    <button class="btn btn-success" style="margin-top: 12px;" onclick="finishMatch('${m.firebaseId}',${m.id})">סיים משחק ושמור נתונים לענן</button>
                 </div>
             `).join('');
         }
@@ -820,81 +814,10 @@
             return `
                 <div class="match-player-row" data-playerid="${p.id}" data-team="${teamName}" style="background: rgba(15,23,42,0.6); padding:8px; border-radius:6px; margin-bottom:6px;">
                     <div style="margin-bottom:4px; font-size:0.85rem;">
-                        <strong>#${p.number}</strong> ${p.name}
+                        <strong>#${p.number}</strong>${p.name}
                     </div>
                     <div class="stats-inputs-grid">
                         <div class="stat-input-box"><label>נק'</label><input type="number" class="pts" value="0" min="0"></div>
                         <div class="stat-input-box"><label>אס'</label><input type="number" class="ast" value="0" min="0"></div>
                         <div class="stat-input-box"><label>ריב'</label><input type="number" class="reb" value="0" min="0"></div>
-                        <div class="stat-input-box"><label>חט'</label><input type="number" class="stl" value="0" min="0"></div>
-                        <div class="stat-input-box"><label>חס'</label><input type="number" class="blk" value="0" min="0"></div>
-                    </div>
-                </div>
-            `;
-        }
-
-        function renderSeasonStats() {
-            const list = document.getElementById('seasonStatsList');
-            if (players.length === 0) {
-                list.innerHTML = '<p style="color:var(--text-muted); text-align:center;">אין שחקנים להצגה.</p>';
-                return;
-            }
-
-            list.innerHTML = players.map(p => {
-                const stats = getPlayerSeasonStats(p.id);
-                return `
-                    <div class="player-profile-card">
-                        <div class="player-avatar">
-                            ${p.image ? `<img src="${p.image}">` : '<i class="fa-solid fa-user"></i>'}
-                        </div>
-                        <div class="player-details" style="flex:1;">
-                            <h4>#${p.number} - ${p.name}</h4>
-                            <div class="player-stats-mini">
-                                <span>משחקים: ${stats.games}</span> | 
-                                <span style="color:var(--success)">אחוזי ניצחון: <strong>${stats.winRate}%</strong></span> | 
-                                <span>ממוצע נק': <strong>${stats.pts}</strong></span> | 
-                                <span>אס': ${stats.ast}</span> | 
-                                <span>ריב': ${stats.reb}</span> | 
-                                <span>חט': ${stats.stl}</span> | 
-                                <span>חס': ${stats.blk}</span>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-        }
-
-        function renderHistory() {
-            const list = document.getElementById('historyList');
-            const completedMatches = matches.filter(m => m.status === 'completed');
-
-            if (completedMatches.length === 0) {
-                list.innerHTML = '<p style="color:var(--text-muted); text-align:center;">טרם הסתיימו משחקים להצגה בהיסטוריה.</p>';
-                return;
-            }
-
-            list.innerHTML = completedMatches.slice().reverse().map(m => `
-                <div class="match-item">
-                    <div class="match-header">
-                        <span><strong>${m.title}</strong> (${m.date})</span>
-                        <span style="color:var(--secondary); font-size:0.85rem; font-weight:700;">תוצאה: ${m.teamAScore} - ${m.teamBScore}</span>
-                    </div>
-                    <div style="font-size:0.8rem; color:var(--text-muted);">
-                        ${m.stats.map(s => {
-                            const player = players.find(p => p.id === s.playerId);
-                            return player ? `<div>• <strong>${player.name}</strong> (${s.team === 'teamA' ? "קבוצה א'" : "קבוצה ב'"}): ${s.pts} נק', ${s.ast} אס', ${s.reb} ריב', ${s.stl} חט', ${s.blk} חס'</div>` : '';
-                        }).join('')}
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        function renderAll() {
-            renderRoster();
-            renderMatchSection();
-            renderSeasonStats();
-            renderHistory();
-        }
-    </script>
-</body>
-</html>
+                        <div class
