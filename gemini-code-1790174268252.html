@@ -7,6 +7,44 @@
     <link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=">
     <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, collection, addDoc, getDocs, deleteDoc, updateDoc, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCDMi9z84yQqHjL2CDtbWgXVsmVx59T0eg",
+            authDomain: "bneytavor-489c1.firebaseapp.com",
+            projectId: "bneytavor-489c1",
+            storageBucket: "bneytavor-489c1.firebasestorage.app",
+            messagingSenderId: "695722699474",
+            appId: "1:695722699474:web:1e8ac4b3d0815dab821b0b",
+            measurementId: "G-LYJ3W6HMWZ"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const storage = getStorage(app);
+
+        window.db = db;
+        window.storage = storage;
+        window.fbCollection = collection;
+        window.fbAddDoc = addDoc;
+        window.fbGetDocs = getDocs;
+        window.fbDeleteDoc = deleteDoc;
+        window.fbUpdateDoc = updateDoc;
+        window.fbDoc = doc;
+        window.fbOnSnapshot = onSnapshot;
+        window.fbStorageRef = ref;
+        window.fbUploadBytes = uploadBytes;
+        window.fbGetDownloadURL = getDownloadURL;
+
+        if (window.initAppAfterFirebase) {
+            window.initAppAfterFirebase();
+        }
+    </script>
 
     <style>
         :root {
@@ -250,6 +288,15 @@
             color: var(--text-muted);
         }
 
+        .player-stats-mini {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 5px;
+            font-size: 0.75rem;
+            color: var(--secondary);
+        }
+
         .match-item {
             background: rgba(15, 23, 42, 0.4);
             border: 1px solid var(--border);
@@ -327,11 +374,11 @@
                     <input type="number" id="pNum" class="form-control" placeholder="7">
                 </div>
                 <div class="form-group">
-                    <label>תמונת פרופיל (קישור תמונה - אופציונלי)</label>
-                    <input type="text" id="pImageLink" class="form-control" placeholder="הדבק כאן קישור תמונה עובד">
+                    <label>תמונת פרופיל (העלאה ישירה ל-Storage ושמירת קישור)</label>
+                    <input type="file" id="pImageFile" class="form-control" accept="image/*" style="padding: 7px;">
                 </div>
-                <button id="savePlayerBtn" class="btn" onclick="window.savePlayer()">צור כרטיס שחקן</button>
-                <button id="cancelEditBtn" class="btn btn-danger" style="display:none; margin-top: 8px;" onclick="window.resetPlayerForm()">ביטול עריכה</button>
+                <button id="savePlayerBtn" class="btn" onclick="savePlayer()">צור כרטיס שחקן</button>
+                <button id="cancelEditBtn" class="btn btn-danger" style="display:none; margin-top: 8px;" onclick="resetPlayerForm()">ביטול עריכה</button>
             </div>
 
             <div class="card">
@@ -346,7 +393,7 @@
                 <h2><i class="fa-solid fa-basketball"></i> 1. פתיחת משחק חדש (חלוקה לקבוצות)</h2>
                 <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;">שייך כל שחקן שהגיע לקבוצה א' או לקבוצה ב'.</p>
                 <div id="setupTeamsContainer" style="margin-bottom: 12px;"></div>
-                <button class="btn" onclick="window.createNewMatch()">פתח משחק חדש</button>
+                <button class="btn" onclick="createNewMatch()">פתח משחק חדש</button>
             </div>
 
             <div class="card">
@@ -374,68 +421,53 @@
 
     <!-- תפריט ניווט תחתוני -->
     <div class="nav-tabs">
-        <button class="nav-tab active" onclick="window.switchTab('tab-roster', this)">
+        <button class="nav-tab active" onclick="switchTab('tab-roster', this)">
             <i class="fa-solid fa-users"></i>
             סגל
         </button>
-        <button class="nav-tab" onclick="window.switchTab('tab-match', this)">
+        <button class="nav-tab" onclick="switchTab('tab-match', this)">
             <i class="fa-solid fa-basketball"></i>
             משחקונים
         </button>
-        <button class="nav-tab" onclick="window.switchTab('tab-stats', this)">
+        <button class="nav-tab" onclick="switchTab('tab-stats', this)">
             <i class="fa-solid fa-chart-pie"></i>
             סטטיסטיקות
         </button>
-        <button class="nav-tab" onclick="window.switchTab('tab-history', this)">
+        <button class="nav-tab" onclick="switchTab('tab-history', this)">
             <i class="fa-solid fa-history"></i>
             היסטוריה
         </button>
     </div>
 
-    <!-- סקריפט יחיד ומאוחד (Modular Scope) -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, collection, addDoc, getDocs, deleteDoc, updateDoc, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-
-        const firebaseConfig = {
-            apiKey: "AIzaSyCDMi9z84yQqHjL2CDtbWgXVsmVx59T0eg",
-            authDomain: "bneytavor-489c1.firebaseapp.com",
-            projectId: "bneytavor-489c1",
-            storageBucket: "bneytavor-489c1.firebasestorage.app",
-            messagingSenderId: "695722699474",
-            appId: "1:695722699474:web:1e8ac4b3d0815dab821b0b",
-            measurementId: "G-LYJ3W6HMWZ"
-        };
-
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-
+    <script>
         let players = [];
         let matches = [];
 
-        onSnapshot(collection(db, "players"), (snapshot) => {
-            players = [];
-            snapshot.forEach((docSnap) => {
-                players.push({ firebaseId: docSnap.id, ...docSnap.data() });
+        window.initAppAfterFirebase = function() {
+            window.fbOnSnapshot(window.fbCollection(window.db, "players"), (snapshot) => {
+                players = [];
+                snapshot.forEach((docSnap) => {
+                    players.push({ firebaseId: docSnap.id, ...docSnap.data() });
+                });
+                renderAll();
             });
-            renderAll();
-        });
 
-        onSnapshot(collection(db, "matches"), (snapshot) => {
-            matches = [];
-            snapshot.forEach((docSnap) => {
-                matches.push({ firebaseId: docSnap.id, ...docSnap.data() });
+            window.fbOnSnapshot(window.fbCollection(window.db, "matches"), (snapshot) => {
+                matches = [];
+                snapshot.forEach((docSnap) => {
+                    matches.push({ firebaseId: docSnap.id, ...docSnap.data() });
+                });
+                renderAll();
             });
-            renderAll();
-        });
+        };
 
-        window.switchTab = function(tabId, btn) {
+        function switchTab(tabId, btn) {
             document.querySelectorAll('.section').forEach(sec => sec.classList.remove('active'));
             document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
             document.getElementById(tabId).classList.add('active');
             btn.classList.add('active');
             renderAll();
-        };
+        }
 
         function getPlayerDisplayName(player) {
             if (player.nickname && player.nickname.trim() !== '') {
@@ -448,7 +480,7 @@
             return player.name;
         }
 
-        window.editPlayer = function(firebaseId) {
+        function editPlayer(firebaseId) {
             const player = players.find(p => p.firebaseId === firebaseId);
             if (!player) return;
 
@@ -456,7 +488,7 @@
             document.getElementById('pName').value = player.name;
             document.getElementById('pNick').value = player.nickname || '';
             document.getElementById('pNum').value = player.number || '';
-            document.getElementById('pImageLink').value = player.image || '';
+            document.getElementById('pImageFile').value = '';
             
             document.getElementById('formTitle').innerHTML = '<i class="fa-solid fa-user-pen"></i> עריכת פרטי שחקן';
             document.getElementById('savePlayerBtn').innerText = 'שמור שינויים';
@@ -464,70 +496,105 @@
             document.getElementById('cancelEditBtn').style.display = 'block';
 
             window.scrollTo({ top: 0, behavior: 'smooth' });
-        };
+        }
 
-        window.resetPlayerForm = function() {
+        function resetPlayerForm() {
             document.getElementById('editingFirebaseId').value = '';
             document.getElementById('pName').value = '';
             document.getElementById('pNick').value = '';
             document.getElementById('pNum').value = '';
-            document.getElementById('pImageLink').value = '';
+            document.getElementById('pImageFile').value = '';
 
             document.getElementById('formTitle').innerHTML = '<i class="fa-solid fa-user-plus"></i> הוספת שחקן חדש לסגל';
             document.getElementById('savePlayerBtn').innerText = 'צור כרטיס שחקן';
             document.getElementById('savePlayerBtn').className = 'btn';
             document.getElementById('cancelEditBtn').style.display = 'none';
-        };
+        }
 
-        window.savePlayer = async function() {
+        async function savePlayer() {
             const editingId = document.getElementById('editingFirebaseId').value;
             const name = document.getElementById('pName').value.trim();
             const nickname = document.getElementById('pNick').value.trim();
             const number = document.getElementById('pNum').value;
-            const imageLink = document.getElementById('pImageLink').value.trim();
+            const fileInput = document.getElementById('pImageFile');
 
             if (!name) {
                 alert('נא להכניס שם שחקן');
                 return;
             }
 
-            try {
-                if (editingId) {
-                    const playerRef = doc(db, "players", editingId);
-                    await updateDoc(playerRef, {
-                        name,
-                        nickname,
-                        number: number ? parseInt(number) : 0,
-                        image: imageLink
-                    });
-                    alert('פרטי השחקן עודכנו בהצלחה!');
-                } else {
-                    await addDoc(collection(db, "players"), {
-                        id: Date.now(),
-                        name,
-                        nickname,
-                        number: number ? parseInt(number) : 0,
-                        image: imageLink
-                    });
-                    alert('השחקן נוסף בהצלחה!');
-                }
-                window.resetPlayerForm();
-            } catch (error) {
-                alert('שגיאה בשמירה לענן: ' + error.message);
+            let imageUrl = '';
+            if (editingId) {
+                const existingPlayer = players.find(p => p.firebaseId === editingId);
+                if (existingPlayer) imageUrl = existingPlayer.image || '';
             }
-        };
 
-        window.deletePlayer = async function(firebaseId) {
+            // אם נבחר קובץ חדש, מעלים אותו ל-Firebase Storage ומקבלים קישור URL מלא
+            if (fileInput.files && fileInput.files[0]) {
+                const file = fileInput.files[0];
+                try {
+                    const storageRef = window.fbStorageRef(window.storage, 'player_images/' + Date.now() + '_' + file.name);
+                    const snapshot = await window.fbUploadBytes(storageRef, file);
+                    imageUrl = await window.fbGetDownloadURL(snapshot.ref);
+                } catch (error) {
+                    console.error("שגיאה בהעלאת התמונה ל-Storage:", error);
+                    alert('שגיאה בהעלאת התמונה לשרת.');
+                    return;
+                }
+            }
+
+            if (editingId) {
+                await updatePlayerInFirebase(editingId, name, nickname, number, imageUrl);
+            } else {
+                await addNewPlayerToFirebase(name, nickname, number, imageUrl);
+            }
+        }
+
+        async function addNewPlayerToFirebase(name, nickname, number, image) {
+            try {
+                await window.fbAddDoc(window.fbCollection(window.db, "players"), {
+                    id: Date.now(),
+                    name,
+                    nickname,
+                    number: number ? parseInt(number) : 0,
+                    image
+                });
+                resetPlayerForm();
+                alert('השחקן נוסף לענן בהצלחה!');
+            } catch (error) {
+                console.error(error);
+                alert('שגיאה בהוספת השחקן לענן.');
+            }
+        }
+
+        async function updatePlayerInFirebase(firebaseId, name, nickname, number, image) {
+            try {
+                const playerRef = window.fbDoc(window.db, "players", firebaseId);
+                await window.fbUpdateDoc(playerRef, {
+                    name,
+                    nickname,
+                    number: number ? parseInt(number) : 0,
+                    image
+                });
+                resetPlayerForm();
+                alert('פרטי השחקן עודכנו בהצלחה!');
+            } catch (error) {
+                console.error(error);
+                alert('שגיאה בעדכון השחקן בענן.');
+            }
+        }
+
+        async function deletePlayer(firebaseId) {
             if(confirm('האם למחוק שחקן זה מהענן?')) {
                 try {
-                    await deleteDoc(doc(db, "players", firebaseId));
+                    await window.fbDeleteDoc(window.fbDoc(window.db, "players", firebaseId));
                 } catch (e) {
                     alert('שגיאה במחיקת השחקן');
                 }
             }
-        };
+        }
 
-        window.createNewMatch = async function() {
+        async function createNewMatch() {
             const selects = document.querySelectorAll('.setup-player-team');
             let teamAPlayers = [];
             let teamBPlayers = [];
@@ -557,7 +624,7 @@
             const matchTitle = `${teamANames} VS ${teamBNames}`;
 
             try {
-                await addDoc(collection(db, "matches"), {
+                await window.fbAddDoc(window.fbCollection(window.db, "matches"), {
                     id: Date.now(),
                     date: new Date().toLocaleDateString('he-IL'),
                     title: matchTitle,
@@ -573,9 +640,9 @@
             } catch (e) {
                 alert('שגיאה ביצירת המשחק');
             }
-        };
+        }
 
-        window.finishMatch = async function(firebaseId, matchId) {
+        async function finishMatch(firebaseId, matchId) {
             const matchCard = document.getElementById(`pending-match-${matchId}`);
             const scoreA = parseInt(matchCard.querySelector('.score-a-input').value) || 0;
             const scoreB = parseInt(matchCard.querySelector('.score-b-input').value) || 0;
@@ -600,8 +667,8 @@
             });
 
             try {
-                await deleteDoc(doc(db, "matches", firebaseId));
-                await addDoc(collection(db, "matches"), {
+                await window.fbDeleteDoc(window.fbDoc(window.db, "matches", firebaseId));
+                await window.fbAddDoc(window.fbCollection(window.db, "matches"), {
                     ...matches.find(m => m.firebaseId === firebaseId),
                     status: 'completed',
                     teamAScore: scoreA,
@@ -613,13 +680,13 @@
             } catch (e) {
                 alert('שגיאה בשמירת המשחק');
             }
-        };
+        }
 
-        window.deleteMatch = async function(firebaseId) {
+        async function deleteMatch(firebaseId) {
             if(confirm('האם למחוק משחק זה?')) {
-                await deleteDoc(doc(db, "matches", firebaseId));
+                await window.fbDeleteDoc(window.fbDoc(window.db, "matches", firebaseId));
             }
-        };
+        }
 
         function getPlayerSeasonStats(playerId) {
             let gamesPlayed = 0;
@@ -673,8 +740,8 @@
                         <p>שם תצוגה: ${getPlayerDisplayName(p)}</p>
                     </div>
                     <div style="display: flex; gap: 5px;">
-                        <button class="btn btn-warning" style="padding: 6px 10px; font-size:0.8rem; width:auto;" onclick="window.editPlayer('${p.firebaseId}')"><i class="fa-solid fa-pen"></i></button>
-                        <button class="btn btn-danger" style="padding: 6px 10px; font-size:0.8rem; width:auto;" onclick="window.deletePlayer('${p.firebaseId}')"><i class="fa-solid fa-trash"></i></button>
+                        <button class="btn btn-warning" style="padding: 6px 10px; font-size:0.8rem; width:auto;" onclick="editPlayer('${p.firebaseId}')"><i class="fa-solid fa-pen"></i></button>
+                        <button class="btn btn-danger" style="padding: 6px 10px; font-size:0.8rem; width:auto;" onclick="deletePlayer('${p.firebaseId}')"><i class="fa-solid fa-trash"></i></button>
                     </div>
                 </div>
             `).join('');
@@ -713,7 +780,7 @@
                 <div class="match-item" id="pending-match-${m.id}">
                     <div class="match-header">
                         <span><strong>${m.title}</strong> (${m.date})</span>
-                        <button class="btn btn-danger" style="padding: 4px 8px; font-size:0.75rem; width:auto;" onclick="window.deleteMatch('${m.firebaseId}')">מחק</button>
+                        <button class="btn btn-danger" style="padding: 4px 8px; font-size:0.75rem; width:auto;" onclick="deleteMatch('${m.firebaseId}')">מחק</button>
                     </div>
 
                     <div style="background: rgba(15,23,42,0.6); padding: 10px; border-radius: 8px; margin-bottom: 12px; border: 1px solid var(--border);">
@@ -745,30 +812,32 @@
                         return p ? renderPlayerStatRow(p, 'teamB') : '';
                     }).join('')}
 
-                    <button class="btn btn-success" style="margin-top: 12px;" onclick="window.finishMatch('${m.firebaseId}', ${m.id})">סיים משחק ושמור נתונים לענן</button>
+                    <button class="btn btn-success" style="margin-top: 12px;" onclick="finishMatch('${m.firebaseId}', ${m.id})">סיים משחק ושמור נתונים לענן</button>
                 </div>
             `).join('');
         }
 
         function renderPlayerStatRow(p, teamName) {
             return `
-                <div class="match-player-row" data-playerid="${p.id}" data-team="${teamName}" style="background: rgba(15,23,42,0.6); padding:8px; border-radius:6px; margin-bottom:6px; border:1px solid var(--border);">
-                    <div style="font-size:0.85rem; margin-bottom:5px; font-weight:700;">#${p.number} ${getPlayerDisplayName(p)}</div>
+                <div class="match-player-row" data-playerid="${p.id}" data-team="${teamName}" style="background: rgba(15,23,42,0.6); padding:8px; border-radius:6px; margin-bottom:6px;">
+                    <div style="margin-bottom:4px; font-size:0.85rem;">
+                        <strong>#${p.number}</strong> ${p.name}
+                    </div>
                     <div class="stats-inputs-grid">
-                        <div class="stat-input-box"><label>נק'</label><input type="number" class="form-control pts" value="0" min="0"></div>
-                        <div class="stat-input-box"><label>אס'</label><input type="number" class="form-control ast" value="0" min="0"></div>
-                        <div class="stat-input-box"><label>ריב'</label><input type="number" class="form-control reb" value="0" min="0"></div>
-                        <div class="stat-input-box"><label>חט'</label><input type="number" class="form-control stl" value="0" min="0"></div>
-                        <div class="stat-input-box"><label>חמ'</label><input type="number" class="form-control blk" value="0" min="0"></div>
+                        <div class="stat-input-box"><label>נק'</label><input type="number" class="pts" value="0" min="0"></div>
+                        <div class="stat-input-box"><label>אס'</label><input type="number" class="ast" value="0" min="0"></div>
+                        <div class="stat-input-box"><label>ריב'</label><input type="number" class="reb" value="0" min="0"></div>
+                        <div class="stat-input-box"><label>חט'</label><input type="number" class="stl" value="0" min="0"></div>
+                        <div class="stat-input-box"><label>חס'</label><input type="number" class="blk" value="0" min="0"></div>
                     </div>
                 </div>
             `;
         }
 
-        function renderStatsSection() {
+        function renderSeasonStats() {
             const list = document.getElementById('seasonStatsList');
             if (players.length === 0) {
-                list.innerHTML = '<p style="color:var(--text-muted); text-align:center;">אין שחקנים להצגת סטטיסטיקות.</p>';
+                list.innerHTML = '<p style="color:var(--text-muted); text-align:center;">אין שחקנים להצגה.</p>';
                 return;
             }
 
@@ -781,14 +850,14 @@
                         </div>
                         <div class="player-details" style="flex:1;">
                             <h4>#${p.number} - ${p.name}</h4>
-                            <div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:4px; font-size:0.75rem; color:var(--text-muted);">
-                                <span>משחקים: <strong>${stats.games}</strong></span>
-                                <span>וין-רייט: <strong style="color:var(--secondary);">${stats.winRate}%</strong></span>
-                                <span>נק': <strong>${stats.pts}</strong></span>
-                                <span>אס': <strong>${stats.ast}</strong></span>
-                                <span>ריב': <strong>${stats.reb}</strong></span>
-                                <span>חט': <strong>${stats.stl}</strong></span>
-                                <span>חמ': <strong>${stats.blk}</strong></span>
+                            <div class="player-stats-mini">
+                                <span>משחקים: ${stats.games}</span> | 
+                                <span style="color:var(--success)">אחוזי ניצחון: <strong>${stats.winRate}%</strong></span> | 
+                                <span>ממוצע נק': <strong>${stats.pts}</strong></span> | 
+                                <span>אס': ${stats.ast}</span> | 
+                                <span>ריב': ${stats.reb}</span> | 
+                                <span>חט': ${stats.stl}</span> | 
+                                <span>חס': ${stats.blk}</span>
                             </div>
                         </div>
                     </div>
@@ -796,23 +865,26 @@
             }).join('');
         }
 
-        function renderHistorySection() {
+        function renderHistory() {
             const list = document.getElementById('historyList');
-            const completed = matches.filter(m => m.status === 'completed');
+            const completedMatches = matches.filter(m => m.status === 'completed');
 
-            if (completed.length === 0) {
-                list.innerHTML = '<p style="color:var(--text-muted); text-align:center;">אין היסטוריית משחקים עדיין.</p>';
+            if (completedMatches.length === 0) {
+                list.innerHTML = '<p style="color:var(--text-muted); text-align:center;">טרם הסתיימו משחקים להצגה בהיסטוריה.</p>';
                 return;
             }
 
-            list.innerHTML = completed.map(m => `
+            list.innerHTML = completedMatches.slice().reverse().map(m => `
                 <div class="match-item">
                     <div class="match-header">
                         <span><strong>${m.title}</strong> (${m.date})</span>
-                        <span style="color:var(--secondary); font-weight:bold;">תוצאה: ${m.teamAScore} - ${m.teamBScore}</span>
+                        <span style="color:var(--secondary); font-size:0.85rem; font-weight:700;">תוצאה: ${m.teamAScore} - ${m.teamBScore}</span>
                     </div>
                     <div style="font-size:0.8rem; color:var(--text-muted);">
-                        המנצחת: <strong style="color:var(--success);">${m.winner === 'teamA' ? "קבוצה א'" : m.winner === 'teamB' ? "קבוצה ב'" : "תיקו"}</strong>
+                        ${m.stats.map(s => {
+                            const player = players.find(p => p.id === s.playerId);
+                            return player ? `<div>• <strong>${player.name}</strong> (${s.team === 'teamA' ? "קבוצה א'" : "קבוצה ב'"}): ${s.pts} נק', ${s.ast} אס', ${s.reb} ריב', ${s.stl} חט', ${s.blk} חס'</div>` : '';
+                        }).join('')}
                     </div>
                 </div>
             `).join('');
@@ -821,8 +893,8 @@
         function renderAll() {
             renderRoster();
             renderMatchSection();
-            renderStatsSection();
-            renderHistorySection();
+            renderSeasonStats();
+            renderHistory();
         }
     </script>
 </body>
