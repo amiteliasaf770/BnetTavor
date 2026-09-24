@@ -8,7 +8,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    <!-- Firebase SDKs (כולל Storage) -->
+    <!-- Firebase SDKs (כולל Storage מלא) -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getFirestore, collection, addDoc, getDocs, deleteDoc, updateDoc, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
@@ -286,15 +286,6 @@
         .player-details p {
             font-size: 0.75rem;
             color: var(--text-muted);
-        }
-
-        .player-stats-mini {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 6px;
-            margin-top: 5px;
-            font-size: 0.75rem;
-            color: var(--secondary);
         }
 
         .match-item {
@@ -829,25 +820,23 @@
 
         function renderPlayerStatRow(p, teamName) {
             return `
-                <div class="match-player-row" data-playerid="${p.id}" data-team="${teamName}" style="background: rgba(15,23,42,0.6); padding:8px; border-radius:6px; margin-bottom:6px;">
-                    <div style="margin-bottom:4px; font-size:0.85rem;">
-                        <strong>#${p.number}</strong> ${p.name}
-                    </div>
+                <div class="match-player-row" data-playerid="${p.id}" data-team="${teamName}" style="background: rgba(15,23,42,0.6); padding:8px; border-radius:6px; margin-bottom:6px; border:1px solid var(--border);">
+                    <div style="font-size:0.85rem; margin-bottom:5px; font-weight:700;">#${p.number} ${getPlayerDisplayName(p)}</div>
                     <div class="stats-inputs-grid">
-                        <div class="stat-input-box"><label>נק'</label><input type="number" class="pts" value="0" min="0"></div>
-                        <div class="stat-input-box"><label>אס'</label><input type="number" class="ast" value="0" min="0"></div>
-                        <div class="stat-input-box"><label>ריב'</label><input type="number" class="reb" value="0" min="0"></div>
-                        <div class="stat-input-box"><label>חט'</label><input type="number" class="stl" value="0" min="0"></div>
-                        <div class="stat-input-box"><label>חס'</label><input type="number" class="blk" value="0" min="0"></div>
+                        <div class="stat-input-box"><label>נק'</label><input type="number" class="form-control pts" value="0" min="0"></div>
+                        <div class="stat-input-box"><label>אס'</label><input type="number" class="form-control ast" value="0" min="0"></div>
+                        <div class="stat-input-box"><label>ריב'</label><input type="number" class="form-control reb" value="0" min="0"></div>
+                        <div class="stat-input-box"><label>חט'</label><input type="number" class="form-control stl" value="0" min="0"></div>
+                        <div class="stat-input-box"><label>חמ'</label><input type="number" class="form-control blk" value="0" min="0"></div>
                     </div>
                 </div>
             `;
         }
 
-        function renderSeasonStats() {
+        function renderStatsSection() {
             const list = document.getElementById('seasonStatsList');
             if (players.length === 0) {
-                list.innerHTML = '<p style="color:var(--text-muted); text-align:center;">אין שחקנים להצגה.</p>';
+                list.innerHTML = '<p style="color:var(--text-muted); text-align:center;">אין שחקנים להצגת סטטיסטיקות.</p>';
                 return;
             }
 
@@ -860,14 +849,14 @@
                         </div>
                         <div class="player-details" style="flex:1;">
                             <h4>#${p.number} - ${p.name}</h4>
-                            <div class="player-stats-mini">
-                                <span>משחקים: ${stats.games}</span> | 
-                                <span style="color:var(--success)">אחוזי ניצחון: <strong>${stats.winRate}%</strong></span> | 
-                                <span>ממוצע נק': <strong>${stats.pts}</strong></span> | 
-                                <span>אס': ${stats.ast}</span> | 
-                                <span>ריב': ${stats.reb}</span> | 
-                                <span>חט': ${stats.stl}</span> | 
-                                <span>חס': ${stats.blk}</span>
+                            <div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:4px; font-size:0.75rem; color:var(--text-muted);">
+                                <span>משחקים: <strong>${stats.games}</strong></span>
+                                <span>וין-רייט: <strong style="color:var(--secondary);">${stats.winRate}%</strong></span>
+                                <span>נק': <strong>${stats.pts}</strong></span>
+                                <span>אס': <strong>${stats.ast}</strong></span>
+                                <span>ריב': <strong>${stats.reb}</strong></span>
+                                <span>חט': <strong>${stats.stl}</strong></span>
+                                <span>חמ': <strong>${stats.blk}</strong></span>
                             </div>
                         </div>
                     </div>
@@ -875,26 +864,23 @@
             }).join('');
         }
 
-        function renderHistory() {
+        function renderHistorySection() {
             const list = document.getElementById('historyList');
-            const completedMatches = matches.filter(m => m.status === 'completed');
+            const completed = matches.filter(m => m.status === 'completed');
 
-            if (completedMatches.length === 0) {
-                list.innerHTML = '<p style="color:var(--text-muted); text-align:center;">טרם הסתיימו משחקים להצגה בהיסטוריה.</p>';
+            if (completed.length === 0) {
+                list.innerHTML = '<p style="color:var(--text-muted); text-align:center;">אין היסטוריית משחקים עדיין.</p>';
                 return;
             }
 
-            list.innerHTML = completedMatches.slice().reverse().map(m => `
+            list.innerHTML = completed.map(m => `
                 <div class="match-item">
                     <div class="match-header">
                         <span><strong>${m.title}</strong> (${m.date})</span>
-                        <span style="color:var(--secondary); font-size:0.85rem; font-weight:700;">תוצאה: ${m.teamAScore} - ${m.teamBScore}</span>
+                        <span style="color:var(--secondary); font-weight:bold;">תוצאה: ${m.teamAScore} - ${m.teamBScore}</span>
                     </div>
                     <div style="font-size:0.8rem; color:var(--text-muted);">
-                        ${m.stats.map(s => {
-                            const player = players.find(p => p.id === s.playerId);
-                            return player ? `<div>• <strong>${player.name}</strong> (${s.team === 'teamA' ? "קבוצה א'" : "קבוצה ב'"}): ${s.pts} נק', ${s.ast} אס', ${s.reb} ריב', ${s.stl} חט', ${s.blk} חס'</div>` : '';
-                        }).join('')}
+                        המנצחת: <strong style="color:var(--success);">${m.winner === 'teamA' ? "קבוצה א'" : m.winner === 'teamB' ? "קבוצה ב'" : "תיקו"}</strong>
                     </div>
                 </div>
             `).join('');
@@ -903,8 +889,8 @@
         function renderAll() {
             renderRoster();
             renderMatchSection();
-            renderSeasonStats();
-            renderHistory();
+            renderStatsSection();
+            renderHistorySection();
         }
     </script>
 </body>
