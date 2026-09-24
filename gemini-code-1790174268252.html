@@ -525,6 +525,7 @@
             // אם נבחר קובץ חדש - נעלה אותו ל-Firebase Storage
             if (fileInput.files && fileInput.files[0]) {
                 const file = fileInput.files[0];
+                console.log("מתחיל העלאת קובץ ל-Storage:", file.name);
                 const storageRef = window.fbStorageRef(window.storage, `player_images/${Date.now()}_${file.name}`);
                 
                 try {
@@ -532,16 +533,20 @@
                     document.getElementById('savePlayerBtn').disabled = true;
 
                     const snapshot = await window.fbUploadBytes(storageRef, file);
+                    console.log("הקובץ הועלה בהצלחה ל-Storage, מקבל קישור הורדה...");
                     finalImage = await window.fbGetDownloadURL(snapshot.ref);
+                    console.log("קישור התמונה התקבל בהצלחה:", finalImage);
                 } catch (error) {
-                    console.error("שגיאה בהעלאת קובץ ל-Storage:", error);
-                    alert('שגיאה בהעלאת התמונה לענן.');
+                    console.error("שגיאה מלאה בהעלאת קובץ ל-Storage:", error);
+                    alert('שגיאה בהעלאת התמונה לענן: ' + error.message);
                     document.getElementById('savePlayerBtn').innerText = editingId ? 'שמור שינויים' : 'צור כרטיס שחקן';
                     document.getElementById('savePlayerBtn').disabled = false;
                     return;
                 } finally {
                     document.getElementById('savePlayerBtn').disabled = false;
                 }
+            } else {
+                console.log("לא נבחר קובץ תמונה, שומר שחקן ללא תמונה חדשה.");
             }
 
             if (editingId) {
@@ -563,7 +568,7 @@
                 resetPlayerForm();
                 alert('השחקן נוסף בהצלחה!');
             } catch (error) {
-                console.error(error);
+                console.error("שגיאה בהוספת מסמך לפיירסטור:", error);
                 alert('שגיאה בהוספת השחקן לענן.');
             }
         }
@@ -580,8 +585,8 @@
                 resetPlayerForm();
                 alert('פרטי השחקן עודכנו בהצלחה!');
             } catch (error) {
-                console.error(error);
-                alert('שגיאה בעדכון השחקן בענן.');
+                console.error("שגיאה בעדכון מסמך לפיירסטור:", error);
+                alert('שגיאה בעדכון השחקן לענן.');
             }
         }
 
